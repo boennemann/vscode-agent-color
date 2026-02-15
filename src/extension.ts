@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { spawnSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
 
 /**
  * Maximally distinct colors — spread across hue AND lightness.
@@ -45,9 +46,6 @@ const COLOR_KEYS = [
   "titleBar.inactiveForeground",
 ];
 
-/**
- * Simple string hash (djb2). Deterministic, fast, no crypto needed.
- */
 function hash(str: string): number {
   let h = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -70,6 +68,30 @@ function getWorkspaceRoot(): string | undefined {
     return undefined;
   }
   return folders[0].uri.fsPath;
+}
+
+/**
+ * Check if the workspace is a git worktree.
+ * In a worktree, .git is a FILE (containing "gitdir: ..."),
+ * not a directory. Returns the gitdir path if worktree, undefined otherwise.
+ */
+function getWorktreeGitDir(workspaceRoot: string): string | undefined {
+  const dotGit = path.join(workspaceRoot, ".git");
+  try {
+    const stat = fs.statSync(dotGit);
+    if (stat.isFile()) {
+      const content = fs.readFileSync(dotGit, "utf8").trim();
+      const match = content.match(/^gitdir:\s*(.+)$/);
+      if (match) {
+        return path.isAbsolute(match[1])
+          ? match[1]
+          : path.resolve(workspaceRoot, match[1]);
+      }
+    }
+  } catch {
+    // No .git
+  }
+  return undefined;
 }
 
 function colorIndexForName(name: string): number {
@@ -112,78 +134,45 @@ function clearTitleBarColor(): void {
 }
 
 /**
- * Make .vscode/settings.json invisible to git.
- *
- * - If the file is NOT tracked: add to .git/info/exclude
- * - If the file IS tracked: use skip-worktree to hide local changes
- *
- * Both approaches leave git status completely clean and preserve the
- * committed version of the file.
+ * Add .vscode/settings.json to the worktree's .git/info/exclude.
+ * Worktrees have their own gitdir, so this is scoped to just this
+ * worktree and never touches any committed files.
  */
-function hideFromGit(workspaceRoot: string): void {
+function hideFromGit(gitDir: string): void {
   try {
-    const isTracked =
-      spawnSync("git", ["ls-files", "--error-unmatch", SETTINGS_PATH], {
-        cwd: workspaceRoot,
-        stdio: "pipe",
-      }).status === 0;
+    const infoDir = path.join(gitDir, "info");
+    const excludePath = path.join(infoDir, "exclude");
 
-    if (isTracked) {
-      // File is tracked — tell git to ignore our local modifications.
-      // The committed version stays untouched; git status stays clean.
-      spawnSync(
-        "git",
-        ["update-index", "--skip-worktree", SETTINGS_PATH],
-        { cwd: workspaceRoot, stdio: "pipe" }
-      );
-    } else {
-      // File is not tracked — add to .git/info/exclude (lives inside
-      // .git/, never committed, never touches the working tree).
-      const fs = require("fs") as typeof import("fs");
-      const path = require("path") as typeof import("path");
+    if (!fs.existsSync(infoDir)) {
+      fs.mkdirSync(infoDir, { recursive: true });
+    }
 
-      // Resolve gitdir (handles worktrees where .git is a file)
-      const dotGit = path.join(workspaceRoot, ".git");
-      let gitDir: string;
-      const stat = fs.statSync(dotGit);
-      if (stat.isDirectory()) {
-        gitDir = dotGit;
-      } else {
-        const content = fs.readFileSync(dotGit, "utf8").trim();
-        const match = content.match(/^gitdir:\s*(.+)$/);
-        if (!match) {
-          return;
-        }
-        gitDir = path.isAbsolute(match[1])
-          ? match[1]
-          : path.resolve(workspaceRoot, match[1]);
-      }
+    let content = "";
+    if (fs.existsSync(excludePath)) {
+      content = fs.readFileSync(excludePath, "utf8");
+    }
 
-      const infoDir = path.join(gitDir, "info");
-      const excludePath = path.join(infoDir, "exclude");
-
-      if (!fs.existsSync(infoDir)) {
-        fs.mkdirSync(infoDir, { recursive: true });
-      }
-
-      let content = "";
-      if (fs.existsSync(excludePath)) {
-        content = fs.readFileSync(excludePath, "utf8");
-      }
-
-      if (
-        !content.split("\n").some((line: string) => line.trim() === SETTINGS_PATH)
-      ) {
-        const nl = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
-        fs.appendFileSync(excludePath, `${nl}${SETTINGS_PATH}\n`);
-      }
+    if (!content.split("\n").some((line) => line.trim() === SETTINGS_PATH)) {
+      const nl = content.length > 0 && !content.endsWith("\n") ? "\n" : "";
+      fs.appendFileSync(excludePath, `${nl}${SETTINGS_PATH}\n`);
     }
   } catch {
-    // Best-effort — don't break activation if git operations fail
+    // Best-effort
   }
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  const root = getWorkspaceRoot();
+  if (!root) {
+    return;
+  }
+
+  // Only activate on git worktrees
+  const gitDir = getWorktreeGitDir(root);
+  if (!gitDir) {
+    return;
+  }
+
   const name = getWorkspaceName();
   const override = context.workspaceState.get<number>("agentColor.override");
   const index =
@@ -200,16 +189,13 @@ export function activate(context: vscode.ExtensionContext) {
   const [bg, fg] = PALETTE[index % PALETTE.length];
   const colorName = PALETTE_NAMES[index % PALETTE.length];
 
-  // --- 1. Color the title bar (writes to .vscode/settings.json) ---
+  // Color the title bar
   applyTitleBarColor(bg, fg);
 
-  // --- 2. Hide .vscode/settings.json from git ---
-  const root = getWorkspaceRoot();
-  if (root) {
-    hideFromGit(root);
-  }
+  // Hide .vscode/settings.json from git
+  hideFromGit(gitDir);
 
-  // --- 3. Status bar indicator (click to reroll) ---
+  // Status bar indicator
   const statusItem = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
     Number.MAX_SAFE_INTEGER
@@ -221,7 +207,7 @@ export function activate(context: vscode.ExtensionContext) {
   statusItem.show();
   context.subscriptions.push(statusItem);
 
-  // --- Commands ---
+  // Commands
   context.subscriptions.push(
     vscode.commands.registerCommand("agentColor.reroll", () => {
       const base = name ? colorIndexForName(name) : 0;
@@ -230,9 +216,6 @@ export function activate(context: vscode.ExtensionContext) {
       context.workspaceState.update("agentColor.override", newIndex);
       const [newBg, newFg] = PALETTE[newIndex % PALETTE.length];
       applyTitleBarColor(newBg, newFg);
-      if (root) {
-        hideFromGit(root);
-      }
       statusItem.text = `$(circle-filled) ${PALETTE_NAMES[newIndex % PALETTE.length]}`;
       statusItem.color = newBg;
       vscode.window.showInformationMessage(
