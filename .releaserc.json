@@ -6,7 +6,8 @@
     [
       "semantic-release-vsce",
       {
-        "packageVsix": true
+        "packageVsix": true,
+        "publish": false
       }
     ],
     [
