@@ -36,6 +36,7 @@
     "watch": "tsc -watch -p ./"
   },
   "devDependencies": {
+    "@types/node": "^25.2.3",
     "@types/vscode": "^1.75.0",
     "semantic-release": "^24.0.0",
     "semantic-release-vsce": "^5.7.0",
