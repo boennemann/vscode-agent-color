@@ -20,14 +20,33 @@ const PALETTE: [string, string][] = [
   ["#00BFA5", "#000000"], // bright teal (light cool)
 ];
 
-const STATE_KEY = "agentColor.index";
+/**
+ * Simple string hash (djb2). Deterministic, fast, no crypto needed.
+ */
+function hash(str: string): number {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h + str.charCodeAt(i)) >>> 0;
+  }
+  return h;
+}
 
-function applyColor(
-  index: number
-): void {
+function getWorkspaceName(): string | undefined {
+  const folders = vscode.workspace.workspaceFolders;
+  if (!folders || folders.length === 0) {
+    return undefined;
+  }
+  // Use the last segment of the workspace folder path (the folder/worktree name)
+  return folders[0].uri.path.split("/").pop();
+}
+
+function colorIndexForName(name: string): number {
+  return hash(name) % PALETTE.length;
+}
+
+function applyColor(index: number): void {
   const [bg, fg] = PALETTE[index % PALETTE.length];
 
-  // Slightly darken the title bar for the active state, lighten for inactive
   const config = vscode.workspace.getConfiguration("workbench");
   const colors: Record<string, string> = {
     "titleBar.activeBackground": bg,
@@ -67,55 +86,37 @@ function getExistingCustomizations(): Record<string, string> {
   return { ...(config.get<Record<string, string>>("colorCustomizations") || {}) };
 }
 
-/**
- * Pick a random index that hasn't been used recently (best-effort).
- * We store used indices in global state so consecutive windows get different colors.
- */
-function pickIndex(context: vscode.ExtensionContext): number {
-  const used = context.globalState.get<number[]>("agentColor.usedIndices") || [];
-  const available = Array.from({ length: PALETTE.length }, (_, i) => i).filter(
-    (i) => !used.includes(i)
-  );
-  const pool = available.length > 0 ? available : Array.from({ length: PALETTE.length }, (_, i) => i);
-  const index = pool[Math.floor(Math.random() * pool.length)];
-
-  // Keep a rolling window of last N used indices
-  const updatedUsed = [...used, index].slice(-Math.floor(PALETTE.length * 0.75));
-  context.globalState.update("agentColor.usedIndices", updatedUsed);
-
-  return index;
-}
-
 export function activate(context: vscode.ExtensionContext) {
-  // Check if this workspace already has an assigned color
-  let index = context.workspaceState.get<number>(STATE_KEY);
-
-  if (index === undefined) {
-    index = pickIndex(context);
-    context.workspaceState.update(STATE_KEY, index);
+  const name = getWorkspaceName();
+  if (name) {
+    applyColor(colorIndexForName(name));
   }
-
-  applyColor(index);
-
-  // Command: pick a new random color
-  context.subscriptions.push(
-    vscode.commands.registerCommand("agentColor.reroll", () => {
-      const newIndex = pickIndex(context);
-      context.workspaceState.update(STATE_KEY, newIndex);
-      applyColor(newIndex);
-      const [bg] = PALETTE[newIndex % PALETTE.length];
-      vscode.window.showInformationMessage(`Agent Color: switched to ${bg}`);
-    })
-  );
 
   // Command: clear the color
   context.subscriptions.push(
     vscode.commands.registerCommand("agentColor.clear", () => {
-      context.workspaceState.update(STATE_KEY, undefined);
       clearColor();
       vscode.window.showInformationMessage("Agent Color: cleared");
     })
   );
+
+  // Command: reroll — pick a random offset and persist it
+  context.subscriptions.push(
+    vscode.commands.registerCommand("agentColor.reroll", () => {
+      const base = name ? colorIndexForName(name) : 0;
+      const offset = 1 + Math.floor(Math.random() * (PALETTE.length - 1));
+      const newIndex = (base + offset) % PALETTE.length;
+      context.workspaceState.update("agentColor.override", newIndex);
+      applyColor(newIndex);
+      vscode.window.showInformationMessage("Agent Color: switched");
+    })
+  );
+
+  // Check for a manual override from a previous reroll
+  const override = context.workspaceState.get<number>("agentColor.override");
+  if (override !== undefined) {
+    applyColor(override);
+  }
 }
 
 export function deactivate() {}
