@@ -1,22 +1,23 @@
 import * as vscode from "vscode";
 
 /**
- * Vivid, highly distinct colors — no green, yellow, or red.
+ * Maximally distinct colors — spread across hue AND lightness.
+ * No green, yellow, or red. Each pair is unmistakable at a glance.
  * Each entry: [background, foreground (for contrast)].
  */
 const PALETTE: [string, string][] = [
-  ["#8B5CF6", "#FFFFFF"], // vivid purple
-  ["#EC4899", "#FFFFFF"], // hot pink
-  ["#06B6D4", "#000000"], // electric cyan
-  ["#F97316", "#000000"], // burnt orange
-  ["#6366F1", "#FFFFFF"], // indigo
-  ["#D946EF", "#FFFFFF"], // fuchsia / magenta
-  ["#0EA5E9", "#000000"], // sky blue
-  ["#14B8A6", "#000000"], // teal
-  ["#A855F7", "#FFFFFF"], // amethyst
-  ["#F472B6", "#000000"], // flamingo pink
-  ["#2563EB", "#FFFFFF"], // royal blue
-  ["#E879F9", "#000000"], // orchid
+  ["#0D0D6F", "#FFFFFF"], // midnight indigo (very dark blue)
+  ["#FF6B00", "#000000"], // vivid orange (bright warm)
+  ["#00E5FF", "#000000"], // electric cyan (bright cool)
+  ["#99004D", "#FFFFFF"], // deep magenta (dark warm)
+  ["#B388FF", "#000000"], // soft lavender (light purple)
+  ["#004D40", "#FFFFFF"], // dark teal (very dark cool)
+  ["#FF69B4", "#000000"], // hot pink (bright warm)
+  ["#0055CC", "#FFFFFF"], // strong blue (medium dark)
+  ["#FF9E00", "#000000"], // amber (light warm)
+  ["#E040FB", "#000000"], // vivid fuchsia (bright cool-warm)
+  ["#1A237E", "#FFFFFF"], // deep navy (very dark)
+  ["#00BFA5", "#000000"], // bright teal (light cool)
 ];
 
 const STATE_KEY = "agentColor.index";
