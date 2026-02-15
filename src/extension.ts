@@ -134,13 +134,22 @@ function clearTitleBarColor(): void {
 }
 
 /**
- * Add .vscode/settings.json to the worktree's .git/info/exclude.
- * Worktrees have their own gitdir, so this is scoped to just this
- * worktree and never touches any committed files.
+ * Add .vscode/settings.json to .git/info/exclude.
+ * For worktrees, git reads info/exclude from the common gitdir
+ * (the main .git/), not the per-worktree gitdir. The worktree's
+ * gitdir has a `commondir` file pointing back to the main .git/.
  */
 function hideFromGit(gitDir: string): void {
   try {
-    const infoDir = path.join(gitDir, "info");
+    // Resolve to the common gitdir (where info/exclude actually lives)
+    const commondirPath = path.join(gitDir, "commondir");
+    let effectiveGitDir = gitDir;
+    if (fs.existsSync(commondirPath)) {
+      const rel = fs.readFileSync(commondirPath, "utf8").trim();
+      effectiveGitDir = path.resolve(gitDir, rel);
+    }
+
+    const infoDir = path.join(effectiveGitDir, "info");
     const excludePath = path.join(infoDir, "exclude");
 
     if (!fs.existsSync(infoDir)) {
