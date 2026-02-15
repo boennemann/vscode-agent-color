@@ -34,12 +34,6 @@ function applyColor(
     "titleBar.activeForeground": fg,
     "titleBar.inactiveBackground": bg + "CC", // 80% opacity
     "titleBar.inactiveForeground": fg + "AA",
-    "statusBar.background": bg,
-    "statusBar.foreground": fg,
-    "statusBar.debuggingBackground": bg,
-    "statusBar.debuggingForeground": fg,
-    "statusBar.noFolderBackground": bg,
-    "statusBar.noFolderForeground": fg,
   };
 
   config.update(
@@ -57,12 +51,6 @@ function clearColor(): void {
     "titleBar.activeForeground",
     "titleBar.inactiveBackground",
     "titleBar.inactiveForeground",
-    "statusBar.background",
-    "statusBar.foreground",
-    "statusBar.debuggingBackground",
-    "statusBar.debuggingForeground",
-    "statusBar.noFolderBackground",
-    "statusBar.noFolderForeground",
   ];
   for (const key of keysToRemove) {
     delete existing[key];
