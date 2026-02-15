@@ -1,0 +1,44 @@
+{
+  "name": "agent-color",
+  "displayName": "Agent Color",
+  "description": "Gives each VS Code / Cursor window a unique, vivid title bar color so you can instantly tell agent windows apart.",
+  "version": "0.0.0-development",
+  "publisher": "boennemann",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/boennemann/vscode-agent-color.git"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentColor.reroll",
+        "title": "Agent Color: Pick a New Color"
+      },
+      {
+        "command": "agentColor.clear",
+        "title": "Agent Color: Clear Color"
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "semantic-release": "^24.0.0",
+    "semantic-release-vsce": "^5.7.0",
+    "typescript": "^5.3.0"
+  }
+}
