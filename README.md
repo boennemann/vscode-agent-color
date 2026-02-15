@@ -28,7 +28,13 @@ Open the Command Palette and run:
 
 ## Install
 
-Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=boennemann.agent-color), or grab a `.vsix` from [GitHub Releases](https://github.com/boennemann/vscode-agent-color/releases) and install via *Extensions → ··· → Install from VSIX*.
+**One-liner** (auto-detects `cursor` or `code`):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/boennemann/vscode-agent-color/main/install.sh | bash
+```
+
+Or install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=boennemann.agent-color), or grab a `.vsix` from [GitHub Releases](https://github.com/boennemann/vscode-agent-color/releases) and install via *Extensions → ··· → Install from VSIX*.
 
 ## License
 
