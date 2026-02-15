@@ -17,9 +17,9 @@ echo "Using: $EDITOR_CMD"
 
 # Get latest .vsix download URL from GitHub Releases
 VSIX_URL=$(curl -sL "https://api.github.com/repos/${REPO}/releases/latest" \
-  | grep '"browser_download_url".*\.vsix"' \
+  | grep -o '"browser_download_url": *"[^"]*\.vsix"' \
   | head -1 \
-  | cut -d '"' -f 4)
+  | grep -o 'https://[^"]*')
 
 if [ -z "$VSIX_URL" ]; then
   echo "Error: no .vsix found in latest release" >&2
